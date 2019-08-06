@@ -1,5 +1,6 @@
 package com.example.barcodescanner;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -14,6 +15,7 @@ import android.util.JsonReader;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
+import android.webkit.URLUtil;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -37,6 +39,9 @@ public class MainActivity extends AppCompatActivity {
     public static String GOOGLE_BOOKS_URL="https://www.googleapis.com/books/v1/volumes?q=isbn:";
     private TextView textView;
     private TextView NameOfBook;
+    private FetchBooks fetchBooks;
+    private ProgressDialog mProgressDialog;
+    private TextView AuthorView;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -50,12 +55,13 @@ public class MainActivity extends AppCompatActivity {
 
         Button btn = findViewById(R.id.button);
         NameOfBook = findViewById(R.id.NameOFBook);
+        mProgressDialog = new ProgressDialog(this);
         textView = findViewById(R.id.textview);
+        fetchBooks = new FetchBooks();
         btn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 scanBarCode(v);
-
             }
         });
 
@@ -63,7 +69,12 @@ public class MainActivity extends AppCompatActivity {
     public void scanBarCode(View v){
         Intent i = new Intent(MainActivity.this,Cam_Scanner.class);
         startActivityForResult(i,0);
+        startFetching(GOOGLE_BOOKS_URL);
+    }
 
+    public void startFetching(String url){
+        fetchBooks.execute(url);
+        mProgressDialog.show();
     }
 
     @Override
@@ -75,11 +86,15 @@ public class MainActivity extends AppCompatActivity {
                 if(data!=null)
                 {
                     Barcode barcode =data.getParcelableExtra("barcode");
+                    boolean validUrl = URLUtil.isValidUrl( "your.uri" );
+                    if(validUrl)
+                    {
+
+                    }
                     textView.setText("ISBN Code : "+barcode.rawValue);
-                    FetchBooks fetchBooks = new FetchBooks();
                     String temp = barcode.rawValue;
                     GOOGLE_BOOKS_URL = GOOGLE_BOOKS_URL+temp;
-                    fetchBooks.execute();
+                    mProgressDialog.show();
                 }
                 else
                 {
@@ -89,9 +104,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public class FetchBooks extends AsyncTask<Void,Void,String>{
+    public class FetchBooks extends AsyncTask<String,Void,String>{
         @Override
-        protected String doInBackground(Void... voids) {
+        protected String doInBackground(String... Url) {
             String result = Utils.createjson(GOOGLE_BOOKS_URL);
             return result;
         }
@@ -100,6 +115,7 @@ public class MainActivity extends AppCompatActivity {
         protected void onPostExecute(String result) {
             try {
                 UpdateUI(result);
+                mProgressDialog.dismiss();
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -114,7 +130,7 @@ public class MainActivity extends AppCompatActivity {
         String title = volumeInfo.getString("title");
         NameOfBook.setText(title);
         JSONArray authors = volumeInfo.getJSONArray("authors");
-        TextView AuthorView = findViewById(R.id.author);
+        AuthorView = findViewById(R.id.author);
         String nameOfAuthor="";
         for(int i=0;i<authors.length();i++)
         {
@@ -148,6 +164,15 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
-        //Picasso.with(MainActivity.this).load(imageurl+".jpg").fit().into(imageView);
+        //Picasso.with(MainActivity.this).load(imageurl+".jpg").fit().into(imageView);*/
+
+        if(title == "" || nameOfAuthor == "" || publishedYear == "" || Description == "")
+        {
+            Log.i("CASEINFO :","CASE PASSED");
+            mProgressDialog.dismiss();
+            fetchBooks.cancel(false);
+            return;
+        }
+        return;
     }
 }
